@@ -1,0 +1,8 @@
+import bcrypt from 'bcryptjs'; import jwt from 'jsonwebtoken'; import User from '../models/User.js';
+const token=u=>jwt.sign({id:u._id,role:u.role},process.env.JWT_SECRET,{expiresIn:process.env.JWT_EXPIRES_IN||'1d'});
+export async function login(req,res){const {email,password}=req.body; const u=await User.findOne({email:email?.toLowerCase()}); if(!u||!u.active||!(await bcrypt.compare(password||'',u.passwordHash))) return res.status(401).json({message:'Invalid email or password'}); res.json({token:token(u),user:{id:u._id,name:u.name,email:u.email,role:u.role}});}
+export async function me(req,res){res.json({user:{id:req.user._id,name:req.user.name,email:req.user.email,role:req.user.role}});}
+export async function listUsers(req,res){res.json(await User.find().select('-passwordHash').sort({createdAt:-1}));}
+export async function createUser(req,res){const {name,email,password,role='Viewer'}=req.body; if(!name||!email||!password)return res.status(400).json({message:'Name, email and password are required'}); if(await User.findOne({email:email.toLowerCase()}))return res.status(409).json({message:'Email already exists'}); const u=await User.create({name,email,passwordHash:await bcrypt.hash(password,12),role}); res.status(201).json({id:u._id,name:u.name,email:u.email,role:u.role,active:u.active});}
+export async function updateUser(req,res){const data={...req.body}; if(data.password){data.passwordHash=await bcrypt.hash(data.password,12);delete data.password;} delete data.email; const u=await User.findByIdAndUpdate(req.params.id,data,{new:true}).select('-passwordHash'); res.json(u);}
+export async function deleteUser(req,res){await User.findByIdAndDelete(req.params.id);res.json({message:'User deleted'});}

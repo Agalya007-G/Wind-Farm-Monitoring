@@ -1,0 +1,9 @@
+import Turbine from '../models/Turbine.js'; import TurbineHistory from '../models/TurbineHistory.js'; import Alert from '../models/Alert.js'; import {start,stop,status,setAbnormal} from '../services/simulator.js';
+export const turbines=async(req,res)=>res.json(await Turbine.find().sort({id:1}));
+export const turbine=async(req,res)=>{const x=await Turbine.findOne({id:req.params.id}); if(!x)return res.status(404).json({message:'Turbine not found'});res.json(x);};
+export const history=async(req,res)=>{const q=req.params.id?{turbineId:req.params.id}:{};const limit=Math.min(Number(req.query.limit)||100,500);res.json(await TurbineHistory.find(q).sort({timestamp:-1}).limit(limit));};
+export const alerts=async(req,res)=>res.json(await Alert.find().sort({timestamp:-1}).limit(200));
+export const resolve=async(req,res)=>res.json(await Alert.findByIdAndUpdate(req.params.id,{resolved:true},{new:true}));
+export const simulatorStatus=(req,res)=>res.json(status()); export const simulatorStart=(req,res)=>{start();res.json(status())}; export const simulatorStop=(req,res)=>{stop();res.json(status())}; export const abnormal=(req,res)=>{setAbnormal(Boolean(req.body.enabled));res.json(status())};
+export const analysis=async(req,res)=>{const rows=await TurbineHistory.find().sort({timestamp:-1}).limit(1000);const avg=k=>rows.length?+(rows.reduce((a,r)=>a+r[k],0)/rows.length).toFixed(2):0;res.json({samples:rows.length,averagePower:avg('powerOutput'),averageTemperature:avg('temperature'),averageWindSpeed:avg('windSpeed'),averageRPM:avg('rpm'),averageHealth:avg('healthScore'),abnormalEvents:rows.filter(r=>r.riskLevel!=='LOW').length});};
+export const predictions=async(req,res)=>res.json(await Turbine.find().select('id name currentHealth currentRisk status temperature vibration gearboxTemperature'));
